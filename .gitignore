@@ -1,0 +1,14 @@
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+
+dist/
+
+
+.env
+.env.local
+
+
+*.log

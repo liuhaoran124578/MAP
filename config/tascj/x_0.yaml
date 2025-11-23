@@ -1,0 +1,53 @@
+# general settings
+exp_type: "suffix-task-classification"
+exp_name: "qwen3-32B-v1-seed2982"
+seed: 2982
+
+# phase: train
+n_folds: 5 
+test_fold: 4  
+max_epochs: 1
+
+# cpu/gpu
+num_workers: 4
+
+# logging & evaluation 
+log_interval: 10
+eval_interval: 1
+clip_grad: false
+cast_to_bf16: false
+
+# dataset
+train_batch_size: 32 
+eval_batch_size: 16
+gradient_accumulation_steps: 1 
+
+dataset_config:
+  csv_file: "/root/autodl-tmp/MAP/data/tascj/dtrainval.csv"
+  max_length: 2048
+  prompt_name: "xxxxx" 
+  # must_cols 和 synthetic_cols 在 Python 代码里有默认值 []，所以这里可以不写
+
+llm_config:
+  backbone: "Qwen/Qwen3-32B"
+  num_labels: 1
+  dtype: "bfloat16"
+  gradient_checkpointing: true
+  resume_from_checkpoint: null
+
+# lr scheduler
+lr_scheduler_config: 
+  name: "linear_warmup_decay"
+  params: 
+    warmup_ratio: 0.1 
+    start_factor: 0.001
+    end_factor: 0.001
+
+# optimizer
+optimizer_config: 
+  name: "OffloadAdam"
+  params: 
+    lr: 1.0e-5
+    decoupled_weight_decay: true
+    mode: "stochastic_rounding"
+    verbose: 10
