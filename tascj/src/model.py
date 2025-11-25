@@ -3,15 +3,13 @@ from transformers import AutoTokenizer
 
 
 from modules.models.modeling_qwen3 import Qwen3ForSequenceClassification
-from modules.models.modeling_qwen2 import Qwen2ForSequenceClassification
-from modules.models.modeling_glm4 import GLM4ForSequenceClassification
+# from modules.models.modeling_qwen2 import Qwen2ForSequenceClassification
+# from modules.models.modeling_glm4 import GLM4ForSequenceClassification
 
 
 class ModelManager:
     MODEL_CLASS_MAP = {
         "qwen3": Qwen3ForSequenceClassification,
-        "qwen2": Qwen2ForSequenceClassification,
-        "glm4": GLM4ForSequenceClassification,
     }
 
     @staticmethod

@@ -20,7 +20,7 @@ echo "📂 Project Root detected at: ${PROJECT_ROOT}"
 # 2. 默认参数设置
 # ======================================================
 # 默认配置文件路径 (相对于项目根目录)
-DEFAULT_CONFIG="config/tascj/x_0.yaml"
+DEFAULT_CONFIG="config/tascj/x_2.yaml"
 CONFIG_PATH="${1:-$DEFAULT_CONFIG}"
 
 # 默认输出目录 (相对于项目根目录)
