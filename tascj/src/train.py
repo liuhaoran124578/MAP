@@ -21,6 +21,9 @@ sys.path.insert(0, str(PROJECT_ROOT / "tascj" / "src"))
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+# torch.multiprocessing.set_sharing_strategy("file_system")
+# torch.backends.cudnn.deterministic = True
+
 # === 导入自定义模块 ===
 import swanlab
 from config import ExperimentConfig

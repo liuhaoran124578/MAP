@@ -1,0 +1,14 @@
+numpy
+pandas
+pyarrow==21.0.0
+scikit-learn
+tqdm
+
+transformers==4.57.0
+bitsandbytes
+accelerate==1.10.1
+
+pydantic
+PyYAML
+swanlab
+modelscope
