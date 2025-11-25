@@ -1,4 +1,3 @@
-
 # 🏆 MAP: Charting Student Math Misunderstandings (Kaggle)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -13,6 +12,7 @@ Currently, we have successfully reproduced the **1st Place Solution** and plan t
 
 ## 📰 News
 
+- **[2025-11-25]** ⚡ **W8A8 Quantization Support**: Added SmoothQuant implementation with custom Triton kernels. You can now quantize 32B+ models to INT8 for efficient inference on limited VRAM.
 - **[2025-11-25]** 🚀 **1st Place Solution (tascj)** reproduction is now fully supported!
     - Features: Qwen2.5/3 & GLM-4 backbones, OffloadAdam optimizer, and robust evaluation (MAP@3).
     - Integrated **SwanLab** for experiment tracking.
@@ -23,7 +23,7 @@ We aim to implement the following top 10 solutions. Detailed analysis can be fou
 
 | Rank | Team / Solution | Status | Backbone Models | Key Features |
 | :---: | :--- | :---: | :--- | :--- |
-| 🥇 | **1st Place (tascj)** | ✅ Done | Qwen2.5, Qwen3, GLM4 | Suffix Classification, Stochastic Rounding, OffloadAdam |
+| 🥇 | **1st Place (tascj)** | ✅ Done | Qwen2.5, Qwen3, GLM4 | Suffix Classification, Stochastic Rounding, **W8A8 SmoothQuant** |
 | 🥉 | 3rd Place | 🚧 TODO | - | - |
 | 4️⃣ | 4th Place | 🚧 TODO | - | - |
 | 🔟 | 10th Place | 🚧 TODO | - | - |
@@ -38,25 +38,27 @@ The project is organized as follows:
 ├── config                 # Configuration files (YAML)
 │   └── tascj              # Configs for 1st place solution
 │       ├── x_0.yaml       # Experiment Config
-│       ├── x_1.yaml
 │       └── ...
 ├── data                   # Dataset directory
-│   ├── map-charting-student-math-misunderstandings.zip
-│   ├── tascj              # Preprocessed data for tascj
-│   ├── train.csv
-│   └── ...
 ├── tascj                  # 1st Place Solution Codebase
-│   ├── scripts            # Training/Inference scripts
+│   ├── scripts            # Shell scripts
+│   │   ├── convert.sh     # Script for W8A8 quantization
+│   │   └── train.sh       # Script for training
 │   └── src                # Source code
 │       ├── config.py      # Pydantic configuration schemas
 │       ├── dataset.py     # MAPDataset & Data Collator
-│       ├── model.py       # Model wrapper (Qwen/GLM)
-│       ├── optimizer.py   # Optimizer factory
 │       ├── train.py       # Main training loop
-│       └── modules        # Core modules (Optimization, Modeling)
+│       ├── inference      # Inference & Quantization tools
+│       │   ├── map-submit.ipynb # Submission notebook
+│       │   ├── sq_collect.py    # Step 1: Collect activation scales
+│       │   └── sq_convert.py    # Step 2: Convert weights to W8A8
+│       └── modules        # Core modules
+│           ├── models
+│           │   ├── w8a8_kernels.py # Custom Triton kernels
+│           │   └── ...
+│           └── optim      # Custom Optimizers (OffloadAdam)
 ├── requirements.txt       # Python dependencies
 ├── setup.sh               # Environment setup script
-├── train.sh               # Entry point script (optional wrapper)
 └── README.md
 ```
 
@@ -64,7 +66,7 @@ The project is organized as follows:
 
 ### 1. Environment Setup
 
-We provide a convenient setup script to install all necessary dependencies.
+We provide a convenient setup script to install all necessary dependencies (including `triton` for W8A8 kernels).
 
 ```bash
 # Clone the repository
@@ -78,53 +80,53 @@ bash setup.sh
 
 Please download the competition data from [Kaggle](https://www.kaggle.com/competitions/eedi-mining-misconceptions-in-mathematics/data) and place it in the `data/` directory.
 
-Ensure your `data/` folder looks like this:
-```text
-data/
-├── train.csv
-├── test.csv
-├── sample_submission.csv
-└── tascj/
-    └── dtrainval.csv  # Processed dataset if applicable
-```
-
 ### 3. Training
 
-You can launch the training using the provided shell script. The script automatically handles path configurations.
+You can launch the training using the provided shell script.
 
-**Usage:**
 ```bash
 # Syntax: bash tascj/scripts/train.sh <Config_Path> <Output_Dir>
-bash tascj/scripts/train.sh config/tascj/x_2.yaml artifacts
+bash tascj/scripts/train.sh config/tascj/x_0.yaml artifacts
 ```
 
-**Key Arguments in Config (`config/tascj/*.yaml`):**
-- `exp_name`: Name of the experiment (affects output folder name).
-- `llm_config.backbone`: Path or name of the HF model (e.g., `Qwen/Qwen2.5-32B-Instruct`).
-- `optimizer_config.name`: Supports `OffloadAdam` for memory efficiency.
-- `gradient_checkpointing`: Set to `true` to save VRAM.
+**Key Config Arguments:**
+- `llm_config.backbone`: Model path (e.g., `Qwen/Qwen2.5-32B`).
+- `optimizer_config.name`: Use `OffloadAdam` to save GPU memory.
 
-### 4. Evaluation
+### 4. ⚡ W8A8 Quantization (SmoothQuant)
 
-Evaluation is performed automatically during training based on `eval_interval`. Results (MAP@3 score and Loss) are logged to the console and SwanLab.
+To deploy large models (e.g., Qwen 32B) on standard GPUs, we support **SmoothQuant (W8A8)**. This process converts both weights and activations to 8-bit integers.
 
-To run evaluation only:
+**The process consists of two steps:**
+1.  **Collect Scales**: Run inference on a calibration set to determine activation ranges.
+2.  **Convert Weights**: Transform FP16/BF16 weights to INT8 based on the collected scales.
+
+We provide a one-click script to handle this:
+
 ```bash
-python tascj/src/train.py --config config/tascj/x_0.yaml --eval-only --load-from artifacts/your_exp_name/checkpoint_epoch_1
+# Usage: bash tascj/scripts/convert.sh <Config_Path> <Checkpoint_Dir>
+
+# Example:
+bash tascj/scripts/convert.sh config/tascj/x_0.yaml artifacts/x_0/checkpoint_epoch_1
 ```
 
-## 📈 Experiment Tracking
+> **Note:** The quantized model will be saved in the `checkpoint_w8a8` folder inside your checkpoint directory.
 
-This project uses **SwanLab** for lightweight experiment tracking and visualization.
-When you run the training script, a link to the experiment dashboard will be printed in the terminal.
+### 5. Inference & Submission
 
-Log files and artifacts are saved in: `artifacts/<exp_name>/`
+For Kaggle submission or local inference using the quantized model:
+
+1.  Ensure you have run the **W8A8 Quantization** step above.
+2.  Use the `tascj/src/inference/map-submit.ipynb` notebook.
+3.  Configure the notebook to load the `checkpoint_w8a8` model path.
 
 ## 🛠️ Implementation Details
 
-- **Configuration Management**: Uses `Pydantic` for strict type checking of YAML configs.
-- **Custom Optimizer**: Implements `OffloadAdam` with stochastic rounding to enable training large models (e.g., 32B) on consumer/cloud GPUs.
-- **Data Pipeline**: A custom `MAPDataset` handles the "Suffix Classification" prompting strategy used by the 1st place solution.
+- **W8A8 SmoothQuant**: Implemented using **OpenAI Triton**. We use custom kernels (`w8a8_kernels.py`) for:
+    - Fused RMS Norm + Quantization.
+    - INT8 Matrix Multiplication with dynamic per-token quantization.
+- **OffloadAdam**: A custom optimizer that offloads optimizer states to CPU RAM, allowing 32B models to fine-tune on 24GB/40GB VRAM GPUs.
+- **Suffix Classification**: A specific prompting strategy that frames the task as a next-token prediction problem for candidate suffixes.
 
 ## 🙏 Acknowledgements
 
@@ -133,7 +135,7 @@ We would like to thank the Kaggle community and the competition organizers. Spec
 - **1st Place Solution**: [tascj](https://github.com/tascj/kaggle-map-charting-student-math-misunderstandings) (Original implementation reference).
 - **Transformers**: Hugging Face.
 - **SwanLab**: For the modern experiment tracking tool.
-- **Qwen & GLM**: For the powerful open-source LLMs.
+- **Triton**: For high-performance GPU programming.
 
 ## 📝 License
 
